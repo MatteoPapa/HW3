@@ -20,10 +20,10 @@
 
       canvas {
         max-width: 80%;
-        margin: 20px;
+        margin: auto;
       }
 
-      .title {
+      .activate{
         display: none;
       }
     </style>
@@ -40,23 +40,25 @@
       <button id="startSimulation">Start Simulation</button>
     </div>
     <br><br>
-    <h1 class="title">Security Scores</h1>
-    <canvas id="chart" width="800" height="400"></canvas>
-    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
-    <canvas id="histogram" width="800" height="400"></canvas>
-    <br>
-    <h1 class="title">Cumulative Frequencies</h1>
-    <canvas id="chart2" width="800" height="400"></canvas>
-    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
-    <canvas id="histogram2" width="800" height="400"></canvas>
-    <h1 class="title">Cumulative Frequencies/Number of Attacks</h1>
-    <canvas id="chart3" width="800" height="400"></canvas>
-    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
-    <canvas id="histogram3" width="800" height="400"></canvas>
-    <h1 class="title">Normalized Ratio</h1>
-    <canvas id="chart4" width="800" height="400"></canvas>
-    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
-    <canvas id="histogram4" width="800" height="400"></canvas>
+    <div>
+      <h1 class="activate">Security Scores</h1>
+      <canvas class="activate" id="chart" width="800" height="400"></canvas>
+      <h2 class="activate">Histograms at Day X (chosen 30) and at Final Day</h2>
+      <canvas class="activate" id="histogram" width="800" height="400"></canvas>
+      <br>
+      <h1 class="activate">Cumulative Frequencies</h1>
+      <canvas class="activate" id="chart2" width="800" height="400"></canvas>
+      <h2 class="activate">Histograms at Day X (chosen 30) and at Final Day</h2>
+      <canvas class="activate" id="histogram2" width="800" height="400"></canvas>
+      <h1 class="activate">Cumulative Frequencies/Number of Attacks</h1>
+      <canvas class="activate" id="chart3" width="800" height="400"></canvas>
+      <h2 class="activate">Histograms at Day X (chosen 30) and at Final Day</h2>
+      <canvas class="activate" id="histogram3" width="800" height="400"></canvas>
+      <h1 class="activate">Normalized Ratio</h1>
+      <canvas class="activate" id="chart4" width="800" height="400"></canvas>
+      <h2 class="activate">Histograms at Day X (chosen 30) and at Final Day</h2>
+      <canvas class="activate" id="histogram4" width="800" height="400"></canvas>
+  </div>
 
     <script>
       // Get HTML elements
@@ -181,7 +183,6 @@
             const pointToX = 50 + i * stepX;
 
             ctx.lineTo(pointToX, pointToY);
-
             ctx.stroke();
           }
         }
@@ -256,7 +257,7 @@
       // Function to start the simulation
       function startSimulation() {
         document
-          .querySelectorAll(".title")
+          .querySelectorAll(".activate")
           .forEach((a) => (a.style.display = "block"));
         numSystems = parseInt(numSystemsInput.value);
         const numAttacks = parseInt(numAttacksInput.value);
@@ -359,7 +360,7 @@
             );
 
             const normalizedValues = cumulativeFreqs.map((system) =>
-              system.map((value) => value / numAttacks)
+              system.map((value,index) => value / (index+1))
             );
 
             yLabelsNormCum = calculateYLabels(normalizedValues);
@@ -375,7 +376,7 @@
             );
 
             for (let i = 0; i < numSystems; i++) {
-                cumulativeFreqsAtDayX[i] = (cumulativeFreqs[i][DayX-1]/numAttacks).toFixed(3);
+                cumulativeFreqsAtDayX[i] = (cumulativeFreqs[i][DayX-1]/DayX).toFixed(3);
             }
 
             for (let i = 0; i < numSystems; i++) {
@@ -391,7 +392,7 @@
             );
 
             const normalizedValues2 = cumulativeFreqs.map((system) =>
-              system.map((value) => value / Math.sqrt(numAttacks))
+              system.map((value,index) => value / Math.sqrt(index+1))
             );
 
             yLabelsNormCum2 = calculateYLabels(normalizedValues2);

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attack Simulator for M Systems</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+
+      h1 {
+        margin-top: 20px;
+      }
+
+      div {
+        margin: 20px;
+      }
+
+      canvas {
+        max-width: 80%;
+        margin: 20px;
+      }
+
+      .title{
+        display:none;
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>Attack Simulator for M Systems</h1>
+    <div>
+      <label for="numAttacks">Number of Attacks:</label>
+      <input type="number" id="numAttacks" value="100" />
+      <label for="successProbability">Success Probability (0-1):</label>
+      <input type="number" id="successProbability" step="0.01" value="0.5" />
+      <label for="numSystems">Number of Systems (M):</label>
+      <input type="number" id="numSystems" value="5" />
+      <button id="startSimulation">Start Simulation</button>
+    </div>
+    <h1 class="title">Security Scores</h1>
+    <canvas id="chart"></canvas>
+    <h1 class="title">Cumulative Frequencies</h1>
+    <canvas id="chart2" style="max-width: 80%; margin: 20px"></canvas>
+    <h1 class="title">Cumulative Frequencies/Number of Attacks</h1>
+    <canvas id="chart3" style="max-width: 80%; margin: 20px"></canvas>
+    <h1 class="title">Normalized Ratio</h1>
+    <canvas id="chart4" style="max-width: 80%; margin: 20px"></canvas>
+
+    <script>
+      // Get HTML elements
+      const numAttacksInput = document.getElementById("numAttacks");
+      const successProbabilityInput = document.getElementById("successProbability");
+      const numSystemsInput = document.getElementById("numSystems");
+      const startSimulationButton = document.getElementById("startSimulation");
+      const chartCanvas = document.getElementById("chart");
+      const chartCanvas2 = document.getElementById("chart2");
+      const chartCanvas3 = document.getElementById("chart3");
+      const chartCanvas4 = document.getElementById("chart4");
+
+      // Initialize variables
+      let numSystems;
+      let chartInstance;
+      let chartInstance2;
+      let chartInstance3;
+      let chartInstance4;
+
+      // Function to simulate a Attack
+      function simulateAttack(probability) {
+        return Math.random() < probability;
+      }
+
+      // Function to update the chart
+      function updateChart(securityScores) {
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+
+        const ctx = chartCanvas.getContext("2d");
+        const datasets = securityScores.map((scores, systemIndex) => ({
+          label: `System ${systemIndex + 1}`,
+          data: scores,
+          borderColor: `hsl(${systemIndex * (360 / numSystems)}, 100%, 50%)`,
+          borderWidth: 2,
+        }));
+
+        chartInstance = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Array.from(
+              { length: securityScores[0].length },
+              (_, i) => i
+            ),
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Number of Attacks Received",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Security Score",
+                },
+              },
+            },
+            animation: {
+              duration: 0,
+            },
+          },
+        });
+      }
+
+      function updateChart2(cumulativeFreqs) {
+        if (chartInstance2) {
+          chartInstance2.destroy();
+        }
+
+        const ctx = chartCanvas2.getContext("2d");
+        const datasets = cumulativeFreqs.map((scores, systemIndex) => ({
+          label: `System ${systemIndex + 1}`,
+          data: scores,
+          borderColor: `hsl(${systemIndex * (360 / numSystems)}, 100%, 50%)`,
+          borderWidth: 2,
+        }));
+
+        chartInstance2 = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Array.from(
+              { length: cumulativeFreqs[0].length },
+              (_, i) => i
+            ),
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Number of Attacks Received",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Cumulative Frequencies",
+                },
+              },
+            },
+            animation: {
+              duration: 0,
+            },
+          },
+        });
+      }
+
+      function updateChart3(cumulativeFreqs, numAttacks) {
+        if (chartInstance3) {
+          chartInstance3.destroy();
+        }
+
+        const ctx = chartCanvas3.getContext("2d");
+        const datasets = cumulativeFreqs.map((scores, systemIndex) => ({
+          label: `System ${systemIndex + 1}`,
+          data: scores.map((value) => value / numAttacks),
+          borderColor: `hsl(${systemIndex * (360 / numSystems)}, 100%, 50%)`,
+          borderWidth: 2,
+        }));
+
+        chartInstance3 = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Array.from(
+              { length: cumulativeFreqs[0].length },
+              (_, i) => i
+            ),
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Number of Attacks Received",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Cumulative Frequencies / Number of Attacks",
+                },
+              },
+            },
+            animation: {
+              duration: 0,
+            },
+          },
+        });
+      }
+      
+      function updateChart4(cumulativeFreqs, numAttacks) {
+        if (chartInstance4) {
+          chartInstance4.destroy();
+        }
+
+        const ctx = chartCanvas4.getContext("2d");
+        const datasets = cumulativeFreqs.map((scores, systemIndex) => ({
+          label: `System ${systemIndex + 1}`,
+          data: scores.map((value) => value / Math.sqrt(numAttacks)),
+          borderColor: `hsl(${systemIndex * (360 / numSystems)}, 100%, 50%)`,
+          borderWidth: 2,
+        }));
+
+        chartInstance4 = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: Array.from(
+              { length: cumulativeFreqs[0].length },
+              (_, i) => i
+            ),
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: "Number of Attacks Received",
+                },
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: "Cumulative Frequencies / Number of Attacks",
+                },
+              },
+            },
+            animation: {
+              duration: 0,
+            },
+          },
+        });
+      }
+      
+      // Function to clear the chart
+      function clearChart() {
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+        if (chartInstance2) {
+          chartInstance2.destroy();
+        }
+        if (chartInstance3) {
+          chartInstance3.destroy();
+        }
+      }
+
+      // Function to start the simulation
+      function startSimulation() {
+        document.querySelectorAll(".title").forEach(a=>a.style.display = "block");
+        clearChart();
+        numSystems = parseInt(numSystemsInput.value);
+        const numAttacks = parseInt(numAttacksInput.value);
+        const successProbability = parseFloat(successProbabilityInput.value);
+
+        const securityScores = Array(numSystems)
+          .fill(0)
+          .map(() => [0]);
+
+        const cumulativeFreqs = Array(numSystems)
+          .fill(0)
+          .map(() => [0]);
+
+        const cumulativeFreqs2 = Array(numSystems)
+          .fill(0)
+          .map(() => [0]);
+
+        let AttackIndex = 0;
+
+        function simulateNextAttack() {
+          if (AttackIndex < numAttacks) {
+            for (let systemIndex = 0; systemIndex < numSystems; systemIndex++) {
+              if (simulateAttack(successProbability)) {
+                securityScores[systemIndex].push(
+                  securityScores[systemIndex][
+                    securityScores[systemIndex].length - 1
+                  ] - 1
+                );
+
+                cumulativeFreqs[systemIndex].push(
+                  cumulativeFreqs[systemIndex][
+                    cumulativeFreqs[systemIndex].length - 1
+                  ] + 1
+                );
+
+                
+              } else {
+                securityScores[systemIndex].push(
+                  securityScores[systemIndex][
+                    securityScores[systemIndex].length - 1
+                  ] + 1
+                );
+
+                cumulativeFreqs[systemIndex].push(
+                  cumulativeFreqs[systemIndex][
+                    cumulativeFreqs[systemIndex].length - 1
+                  ]
+                );
+
+              
+              }
+            }
+            AttackIndex++;
+
+            updateChart(securityScores);
+            updateChart2(cumulativeFreqs);
+            updateChart3(cumulativeFreqs,numAttacks);
+            updateChart4(cumulativeFreqs,numAttacks);
+            setTimeout(simulateNextAttack, 20);
+          }
+        }
+
+        simulateNextAttack();
+      }
+
+      // Add event listeners
+      startSimulationButton.addEventListener("click", startSimulation);
+    </script>
+  </body>
+</html>
