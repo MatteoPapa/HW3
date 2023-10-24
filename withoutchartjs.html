@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attack Simulator for M Systems</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+      }
+
+      h1 {
+        margin-top: 20px;
+      }
+
+      div {
+        margin: 20px;
+      }
+
+      canvas {
+        max-width: 80%;
+        margin: 20px;
+      }
+
+      .title {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Attack Simulator</h1>
+    <div>
+      <label for="numAttacks">Number of Attacks:</label>
+      <input type="number" id="numAttacks" value="100" />
+      <label for="successProbability">Success Probability (0-1):</label>
+      <input type="number" id="successProbability" step="0.01" value="0.5" />
+      <label for="numSystems">Number of Systems (M):</label>
+      <input type="number" id="numSystems" value="5" />
+      <button id="startSimulation">Start Simulation</button>
+    </div>
+    <br><br>
+    <h1 class="title">Security Scores</h1>
+    <canvas id="chart" width="800" height="400"></canvas>
+    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
+    <canvas id="histogram" width="800" height="400"></canvas>
+    <br>
+    <h1 class="title">Cumulative Frequencies</h1>
+    <canvas id="chart2" width="800" height="400"></canvas>
+    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
+    <canvas id="histogram2" width="800" height="400"></canvas>
+    <h1 class="title">Cumulative Frequencies/Number of Attacks</h1>
+    <canvas id="chart3" width="800" height="400"></canvas>
+    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
+    <canvas id="histogram3" width="800" height="400"></canvas>
+    <h1 class="title">Normalized Ratio</h1>
+    <canvas id="chart4" width="800" height="400"></canvas>
+    <h2 class="title">Histograms at Day X (chosen 30) and at Final Day</h2>
+    <canvas id="histogram4" width="800" height="400"></canvas>
+
+    <script>
+      // Get HTML elements
+      const numAttacksInput = document.getElementById("numAttacks");
+      const successProbabilityInput =
+        document.getElementById("successProbability");
+      const numSystemsInput = document.getElementById("numSystems");
+      const startSimulationButton = document.getElementById("startSimulation");
+
+      const chartCanvas = document.getElementById("chart");
+      const chartCanvas2 = document.getElementById("chart2");
+      const chartCanvas3 = document.getElementById("chart3");
+      const chartCanvas4 = document.getElementById("chart4");
+
+      const chartHistogram = document.getElementById("histogram");
+      const chartHistogram2 = document.getElementById("histogram2");
+      const chartHistogram3 = document.getElementById("histogram3");
+      const chartHistogram4 = document.getElementById("histogram4");
+
+      // Initialize variables
+      let numSystems;
+      let ctx;
+      let securityScores = [];
+      let cumulativeFreqs = [];
+      let AttackIndex = 0;
+      let animationFrameId;
+
+      // Function to simulate a Attack
+      function simulateAttack(probability) {
+        return Math.random() < probability;
+      }
+
+      // Function to clear the canvas
+      function clearCanvas(canvas) {
+        canvas.width = canvas.width;
+      }
+
+      // Function to calculate Y-axis labels based on data
+      function calculateYLabels(data) {
+        const max = Math.max(...data.map((system) => Math.max(...system)));
+        const min = Math.min(...data.map((system) => Math.min(...system)));
+        const step = (max - min) / 10;
+        const labels = [];
+        for (let i = min; i <= max; i += step) {
+          labels.push(i);
+        }
+        return labels;
+      }
+
+      // Function to update the line chart
+      function updateChart(canvas, data, attack, numSystems, xLabels, yLabels) {
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Clear the canvas
+        clearCanvas(canvas);
+
+        // Draw axes
+        ctx.beginPath();
+        ctx.moveTo(50, 10);
+        ctx.lineTo(50, height - 30);
+        ctx.lineTo(width - 10, height - 30);
+        ctx.stroke();
+
+        // Draw axis labels
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText("Number of Attacks Received", (width - 10) / 2, height);
+        ctx.save();
+        ctx.translate(15, (height - 30) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("Value", 0, 0);
+        ctx.restore();
+
+        // Draw X-axis labels
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        const stepX = (width - 60) / (xLabels.length - 1);
+        for (let i = 0; i < xLabels.length; i++) {
+          const x = 50 + i * stepX;
+          let step = Math.floor(parseInt(numAttacksInput.value) / 20);
+          if (i % step == 0) ctx.fillText(xLabels[i], x, height - 10);
+        }
+
+        // Draw Y-axis labels
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "right";
+        const stepY = (height - 40) / (yLabels.length - 1);
+        for (let i = 0; i < yLabels.length; i++) {
+          const y = height - 30 - i * stepY;
+
+          ctx.fillText(yLabels[i], 40 - 5, y);
+        }
+
+        var intToRGB = function (valueOrig) {
+          //credit to https://stackoverflow.com/a/2262117/2737978 for the idea of how to implement
+          value = valueOrig * 10799;
+          var blue = Math.floor(value % 256);
+          var green = Math.floor(((value * 7) / 3) % 256);
+          var red = Math.floor(((value * 9) / 3 / 2) % 256);
+
+          return "rgb(" + red + "," + green + "," + blue + ")";
+        };
+
+        for (let j = 0; j < numSystems; j++) {
+          ctx.strokeStyle = intToRGB(j);
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(50, height - 30);
+
+          for (let i = 0; i < data[j].length; i++) {
+            const pointToY =
+              height -
+              30 -
+              ((data[j][i] - yLabels[0]) /
+                (yLabels[yLabels.length - 1] - yLabels[0])) *
+                (height - 40);
+            const pointToX = 50 + i * stepX;
+
+            ctx.lineTo(pointToX, pointToY);
+
+            ctx.stroke();
+          }
+        }
+
+        if (attack == 0) ctx.stroke();
+      }
+
+      function updateHistogram(canvas, data, dataFinal, numSystems,yLabels) {
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Clear the canvas
+        clearCanvas(canvas);
+
+        // Draw axes
+        ctx.beginPath();
+        ctx.moveTo(50, 10);
+        ctx.lineTo(50, height - 30);
+        ctx.moveTo(50, (height - 30) / 2);
+        ctx.lineTo(width, (height - 30) / 2);
+        ctx.stroke();
+
+        // Draw axis labels
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText("Systems", (width - 10) / 2, height-5);
+        ctx.save();
+        ctx.translate(15, (height - 30) / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("Value", 0, 0);
+        ctx.restore();
+
+        // Draw X-axis labels
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        const stepX = (width - 100) / (numSystems - 1);
+
+        // Draw Y-axis labels
+        ctx.font = "12px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "right";
+        const stepY = (height - 40) / (yLabels.length - 1);
+        
+        var intToRGB = function (valueOrig) {
+          //credit to https://stackoverflow.com/a/2262117/2737978 for the idea of how to implement
+          value = valueOrig * 10799;
+          var blue = Math.floor(value % 256);
+          var green = Math.floor(((value * 7) / 3) % 256);
+          var red = Math.floor(((value * 9) / 3 / 2) % 256);
+
+          return "rgb(" + red + "," + green + "," + blue + ")";
+        }; 
+
+        const dataMax= Math.max.apply(null, data);
+        const dataFinalMax= Math.max.apply(null, dataFinal);
+        let visualMultiplier= 70/Math.max(dataFinalMax,dataMax);
+
+        // Draw Histograms
+        for (let i=0; i < numSystems; i++) {
+            ctx.fillStyle= intToRGB(i);
+            ctx.fillRect(50 + i * stepX, (height - 30) / 2, 10, -data[i]*visualMultiplier);
+            ctx.fillRect(60 + i * stepX, (height - 30) / 2, 10, -dataFinal[i]*visualMultiplier);
+            ctx.fillText(data[i],40 + i * stepX,(height) / 2)
+            ctx.fillText(dataFinal[i],90 + i * stepX,(height) / 2)
+            
+        }
+      }
+
+      // Function to start the simulation
+      function startSimulation() {
+        document
+          .querySelectorAll(".title")
+          .forEach((a) => (a.style.display = "block"));
+        numSystems = parseInt(numSystemsInput.value);
+        const numAttacks = parseInt(numAttacksInput.value);
+        const successProbability = parseFloat(successProbabilityInput.value);
+
+        securityScores = Array(numSystems);
+        for (let num = 0; num < numSystems; num++) {
+          securityScores[num] = Array(numAttacks).fill(0);
+        }
+
+        cumulativeFreqs = Array(numSystems).fill(0);
+        for (let num = 0; num < numSystems; num++) {
+          cumulativeFreqs[num] = Array(numAttacks).fill(0);
+        }
+
+        AttackIndex = 0;
+
+        const xLabels = Array.from({ length: numAttacks }, (_, i) => i);
+        let yLabels = Array.from({ length: numAttacks + 1 }, (_, i) => i);
+
+        function updateChartsWithDelay() {
+          while (AttackIndex < numAttacks) {
+            for (let systemIndex = 0; systemIndex < numSystems; systemIndex++) {
+              if (simulateAttack(successProbability)) {
+                securityScores[systemIndex][AttackIndex + 1] =
+                  securityScores[systemIndex][AttackIndex] - 1;
+
+                cumulativeFreqs[systemIndex][AttackIndex + 1] =
+                  cumulativeFreqs[systemIndex][AttackIndex] + 1;
+              } else {
+                securityScores[systemIndex][AttackIndex + 1] =
+                  securityScores[systemIndex][AttackIndex] + 1;
+
+                cumulativeFreqs[systemIndex][AttackIndex + 1] =
+                  cumulativeFreqs[systemIndex][AttackIndex];
+              }
+            }
+
+            yLabelsSec = calculateYLabels(securityScores);
+            yLabelsSec = yLabelsSec.map((value) => Math.ceil(value));
+
+            updateChart(
+              chartCanvas,
+              securityScores,
+              AttackIndex,
+              numSystems,
+              xLabels,
+              yLabelsSec
+            );
+
+            const DayX = 30;
+            securityScoresAtDayX = Array(numSystems);
+            securityScoresAtFinalDay = Array(numSystems);
+
+            for (let i = 0; i < numSystems; i++) {
+              securityScoresAtDayX[i] = securityScores[i][DayX-1];
+            }
+
+            for (let i = 0; i < numSystems; i++) {
+              securityScoresAtFinalDay[i] = securityScores[i][numAttacks-1];
+            }
+
+            updateHistogram(
+              chartHistogram,
+              securityScoresAtDayX,
+              securityScoresAtFinalDay,
+              numSystems,
+              yLabelsSec
+            );
+
+            yLabelsCum = calculateYLabels(cumulativeFreqs);
+            yLabelsCum = yLabelsCum.map((value) => Math.ceil(value));
+
+            updateChart(
+              chartCanvas2,
+              cumulativeFreqs,
+              AttackIndex,
+              numSystems,
+              xLabels,
+              yLabelsCum
+            );
+
+            cumulativeFreqsAtDayX = Array(numSystems);
+            cumulativeFreqsAtFinalDay = Array(numSystems);
+
+            for (let i = 0; i < numSystems; i++) {
+                cumulativeFreqsAtDayX[i] = cumulativeFreqs[i][DayX-1];
+            }
+
+            for (let i = 0; i < numSystems; i++) {
+              cumulativeFreqsAtFinalDay[i] = cumulativeFreqs[i][numAttacks-1];
+            }
+
+            updateHistogram(
+              chartHistogram2,
+              cumulativeFreqsAtDayX,
+              cumulativeFreqsAtFinalDay,
+              numSystems,
+              yLabelsSec
+            );
+
+            const normalizedValues = cumulativeFreqs.map((system) =>
+              system.map((value) => value / numAttacks)
+            );
+
+            yLabelsNormCum = calculateYLabels(normalizedValues);
+            yLabelsNormCum = yLabelsNormCum.map((value) => value.toFixed(2));
+
+            updateChart(
+              chartCanvas3,
+              normalizedValues,
+              AttackIndex,
+              numSystems,
+              xLabels,
+              yLabelsNormCum
+            );
+
+            for (let i = 0; i < numSystems; i++) {
+                cumulativeFreqsAtDayX[i] = (cumulativeFreqs[i][DayX-1]/numAttacks).toFixed(3);
+            }
+
+            for (let i = 0; i < numSystems; i++) {
+              cumulativeFreqsAtFinalDay[i] = (cumulativeFreqs[i][numAttacks-1]/numAttacks).toFixed(3);
+            }
+
+            updateHistogram(
+              chartHistogram3,
+              cumulativeFreqsAtDayX,
+              cumulativeFreqsAtFinalDay,
+              numSystems,
+              yLabelsSec
+            );
+
+            const normalizedValues2 = cumulativeFreqs.map((system) =>
+              system.map((value) => value / Math.sqrt(numAttacks))
+            );
+
+            yLabelsNormCum2 = calculateYLabels(normalizedValues2);
+            yLabelsNormCum2 = yLabelsNormCum2.map((value) => value.toFixed(2));
+
+            updateChart(
+              chartCanvas4,
+              normalizedValues2,
+              AttackIndex,
+              numSystems,
+              xLabels,
+              yLabelsNormCum2
+            );
+
+            for (let i = 0; i < numSystems; i++) {
+                cumulativeFreqsAtDayX[i] = (cumulativeFreqs[i][DayX-1]/Math.sqrt(numAttacks)).toFixed(3);
+            }
+
+            for (let i = 0; i < numSystems; i++) {
+              cumulativeFreqsAtFinalDay[i] = (cumulativeFreqs[i][numAttacks-1]/Math.sqrt(numAttacks)).toFixed(3);
+            }
+
+            updateHistogram(
+              chartHistogram4,
+              cumulativeFreqsAtDayX,
+              cumulativeFreqsAtFinalDay,
+              numSystems,
+              yLabelsSec
+            );
+
+            AttackIndex++;
+
+            setTimeout(updateChartsWithDelay, 500);
+          }
+        }
+
+        updateChartsWithDelay();
+      }
+
+      // Add event listeners
+      startSimulationButton.addEventListener("click", () => {
+        startSimulation();
+      });
+    </script>
+  </body>
+</html>
